@@ -15,14 +15,14 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # -----------ENV---------------------
-RABBIT_HOST = os.getenv("RABBIT_HOST", "rabbitmq")
-RABBIT_USER = os.getenv("RABBIT_USER", "guest")
-RABBIT_PASS = os.getenv("RABBIT_PASS", "guest")
+RABBIT_HOST = os.getenv("RABBIT_HOST", "35.193.7.88")
+RABBIT_USER = os.getenv("RABBIT_USER", "rabbitmq-user")
+RABBIT_PASS = os.getenv("RABBIT_PASS", "rabbitmq-pass")
 REQUEST_QUEUE = os.getenv("REQUEST_QUEUE", "inference_request")
 REPLY_EXCHANGE = os.getenv("REPLY_EXCHANGE", "inference_replies")
-MODEL_MODE = os.getenv("MODEL_MODE", "development")
-PROD_MODEL = os.getenv("PROD_MODEL_NAME", "DeepSeek/DeepSeekR1-large")
-DEV_MODEL = os.getenv("DEV_MODEL_NAME", "DeepSeek/DeepSeekR1-small")
+MODEL_MODE = os.getenv("MODEL_MODE", "production")
+PROD_MODEL = os.getenv("PROD_MODEL_NAME", "deepseek-ai/DeepSeek-R1")
+DEV_MODEL = os.getenv("DEV_MODEL_NAME", "deepseek-ai/DeepSeek-R1")
 MAX_CONCURRENCY = int(os.getenv("MAX_CONCURRENCY", 2))
 
 # ---------GLOBALS--------------------
@@ -35,7 +35,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # ---------MODEL----------------------
 def load_model():
     global tokenizer, model
-    name = PROD_MODEL if MODEL_MODE.lower() == "production" else DEV_MODEL
+    name = PROD_MODEL if MODEL_MODE.lower() == "production" else PROD_MODEL
     logger.info("Loading %s model: %s", MODEL_MODE.upper(), name)
 
     tokenizer = AutoTokenizer.from_pretrained(name, trust_remote_code=True)
