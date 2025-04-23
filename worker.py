@@ -2,11 +2,13 @@ import json
 import logging
 import os
 import threading
+from unittest.mock import patch
 
 import pika
 import torch
 from accelerate import infer_auto_device_map, load_checkpoint_and_dispatch
 from transformers import AutoModelForCausalLM, AutoTokenizer, TextIteratorStreamer
+from transformers.dynamic_modules_utils import get_imports
 
 logging.basicConfig(
     format="[DeepSeek] %(levelname)s %(asctime)s - %(message)s",
@@ -32,27 +34,37 @@ model = None
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
+# ---------MonkeyPatch (Transformers)--
+def fixed_get_imports(filename: str) -> list[str]:
+    imports = get_imports(filename)
+    if filename.endswith("/modeling_deepseek.py"):
+        if "flash_attn" in imports:
+            imports.remove("flash_attn")
+    return imports
+
+
 # ---------MODEL----------------------
 def load_model():
     global tokenizer, model
     name = PROD_MODEL if MODEL_MODE.lower() == "production" else PROD_MODEL
     logger.info("Loading %s model: %s", MODEL_MODE.upper(), name)
 
-    tokenizer = AutoTokenizer.from_pretrained(name, trust_remote_code=True)
+    with patch("transformers.dynamic_modules_utils.get_imports", fixed_get_imports):
+        tokenizer = AutoTokenizer.from_pretrained(name, trust_remote_code=True)
 
-    if MODEL_MODE.lower() == "production":
-        dummy = AutoModelForCausalLM.from_pretrained(
-            name, device_map={"": device}, trust_remote_code=True
-        )
-        dmap = infer_auto_device_map(dummy, no_split_module_classes=["GPTBlock"])
-        model = load_checkpoint_and_dispatch(dummy, name, device_map=dmap)
-    else:
-        model = AutoModelForCausalLM.from_pretrained(name, trust_remote_code=True).to(
-            device
-        )
+        if MODEL_MODE.lower() == "production":
+            dummy = AutoModelForCausalLM.from_pretrained(
+                name, device_map={"": device}, trust_remote_code=True
+            )
+            dmap = infer_auto_device_map(dummy, no_split_module_classes=["GPTBlock"])
+            model = load_checkpoint_and_dispatch(dummy, name, device_map=dmap)
+        else:
+            model = AutoModelForCausalLM.from_pretrained(
+                name, trust_remote_code=True
+            ).to(device)
 
-    model.eval()
-    logger.info("Model loaded on %s", device)
+        model.eval()
+        logger.info("Model loaded on %s", device)
 
 
 # -------PROMPT---------------------------
