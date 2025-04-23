@@ -8,7 +8,7 @@ import pika
 import torch
 from accelerate import infer_auto_device_map, load_checkpoint_and_dispatch
 from transformers import AutoModelForCausalLM, AutoTokenizer, TextIteratorStreamer
-from transformers.dynamic_modules_utils import get_imports
+from transformers.dynamic_module_utils import get_imports
 
 logging.basicConfig(
     format="[DeepSeek] %(levelname)s %(asctime)s - %(message)s",
@@ -49,7 +49,7 @@ def load_model():
     name = PROD_MODEL if MODEL_MODE.lower() == "production" else PROD_MODEL
     logger.info("Loading %s model: %s", MODEL_MODE.upper(), name)
 
-    with patch("transformers.dynamic_modules_utils.get_imports", fixed_get_imports):
+    with patch("transformers.dynamic_module_utils.get_imports", fixed_get_imports):
         tokenizer = AutoTokenizer.from_pretrained(name, trust_remote_code=True)
 
         if MODEL_MODE.lower() == "production":
